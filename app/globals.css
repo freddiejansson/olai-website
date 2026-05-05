@@ -934,8 +934,11 @@ section.block {
 .qd-kpi:hover { background: var(--qd-paper-2); }
 .qd-kpi-label {
   font-family: var(--font-mono), monospace;
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+  font-size: 10px; line-height: 1.2;
+  text-transform: uppercase; letter-spacing: 0.14em;
   color: var(--qd-muted);
+  min-height: 2.4em;
+  display: block;
 }
 .qd-kpi-value {
   font-family: var(--font-space), 'Space Grotesk', sans-serif;
