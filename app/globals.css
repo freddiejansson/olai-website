@@ -915,7 +915,7 @@ section.block {
 /* ---- KPI grid ---- */
 .qd-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border: 1px solid var(--qd-rule);
   border-radius: 12px;
   background: var(--qd-card);
@@ -1565,7 +1565,7 @@ section.block {
 @media (max-width: 960px) {
   .qd-app { grid-template-columns: 1fr; }
   .qd-sidebar { display: none; }
-  .qd-kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .qd-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .qd-kpi { border-bottom: 1px solid var(--qd-rule); }
   .qd-row-2, .qd-row-2-1, .qd-row-3 { grid-template-columns: 1fr; }
   .qd-tile-grid { grid-template-columns: 1fr; }

@@ -102,9 +102,9 @@ function Sidebar({ current, setCurrent }) {
       num: "01",
       items: [
         { id: "home", label: "Home", icon: "home" },
+        { id: "forecasting", label: "Forecasting", icon: "spark" },
         { id: "campaigns", label: "Campaigns", icon: "chart" },
         { id: "experiments", label: "Experiments", icon: "flask" },
-        { id: "forecasting", label: "Forecasting", icon: "spark" },
       ],
     },
     {
@@ -642,19 +642,27 @@ function Cohort() {
 
 /* ---------- Home Dashboard page ---------- */
 function HomeDashboard({ range }) {
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 5) return "Still up,";
+    if (h < 12) return "Good morning,";
+    if (h < 17) return "Good afternoon,";
+    if (h < 22) return "Good evening,";
+    return "Working late,";
+  }, []);
   const kpis = [
     { label: "Total spend", value: 109000, format: fmtMoney, delta: "+8.2%", deltaPos: false, spark: [40, 42, 44, 43, 46, 48, 50, 52, 54, 55, 58, 60], color: "#c8553d" },
     { label: "Revenue", value: 372400, format: fmtMoney, delta: "+14.1%", deltaPos: true, spark: [60, 62, 65, 68, 72, 76, 80, 84, 88, 92, 98, 104], color: "#2f5d50" },
     { label: "Profit margin", value: 31.4, format: (v) => v.toFixed(1) + "%", delta: "+2.1pp", deltaPos: true, spark: [22, 24, 26, 25, 27, 28, 29, 30, 31, 30, 32, 31] },
     { label: "CAC", value: 24.8, format: (v) => "€" + v.toFixed(2), delta: "−4.6%", deltaPos: true, spark: [32, 30, 29, 28, 27, 28, 26, 25, 26, 25, 24, 25] },
     { label: "Conversions", value: 3412, format: fmtNum, delta: "+11.8%", deltaPos: true, spark: [200, 210, 230, 240, 250, 260, 280, 290, 310, 320, 340, 341] },
-    { label: "Active campaigns", value: 47, format: fmtNum, delta: "+3", deltaPos: true, spark: [40, 41, 41, 42, 43, 44, 44, 45, 45, 46, 46, 47] },
+    { label: "COS%", value: (109000 / 372400) * 100, format: (v) => v.toFixed(1) + "%", delta: "−1.6pp", deltaPos: true, spark: [66.7, 67.7, 67.7, 63.2, 63.9, 63.2, 62.5, 61.9, 61.4, 59.8, 59.2, 57.7] },
   ];
   return (
     <>
       <PageHead
         num="01 — Overview"
-        title="Good morning,"
+        title={greeting}
         em="Maria."
         sub={`Here's what moved at Acme Co. over the last ${range}. Three things need your eye — Virtual Analyst flagged them below.`}
       />
@@ -1024,6 +1032,775 @@ function AlertsPage() {
   );
 }
 
+/* ---------- Forecasting ---------- */
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const dayKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// deterministic per-day pseudo-random in [0, 1)
+const dayRand = (d, salt = 0) => {
+  const k = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + salt * 7919;
+  let x = (k ^ 0x9e3779b9) >>> 0;
+  x = (x * 1664525 + 1013904223) >>> 0;
+  x = (x ^ (x >>> 15)) >>> 0;
+  return (x % 1_000_000) / 1_000_000;
+};
+
+function genDay(date) {
+  const dow = date.getDay(); // 0=Sun
+  // weekly seasonality: weekdays higher than weekends
+  const weekly = [0.82, 1.06, 1.10, 1.08, 1.12, 1.04, 0.86][dow];
+  // small monthly trend
+  const monthProgress = (date.getDate() - 1) / 30;
+  const trend = 1 + monthProgress * 0.06;
+  const noiseR = (dayRand(date, 1) - 0.5) * 0.10;
+  const noiseC = (dayRand(date, 2) - 0.5) * 0.07;
+  const baseRevenue = 14200 * weekly * trend * (1 + noiseR);
+  const baseCost = 9100 * (0.92 + (weekly - 0.92) * 0.55) * trend * (1 + noiseC);
+  const revenue = Math.max(0, baseRevenue);
+  const cost = Math.max(0, baseCost);
+  const profit = revenue - cost;
+  return { date, revenue, cost, profit };
+}
+
+function buildForecastData(period, today) {
+  let start, end, splitIndex; // splitIndex = first forecast index (-1 if none)
+  if (period === "7d") {
+    end = new Date(today);
+    start = new Date(today);
+    start.setDate(start.getDate() - 6);
+    splitIndex = -1;
+  } else if (period === "30d") {
+    end = new Date(today);
+    start = new Date(today);
+    start.setDate(start.getDate() - 29);
+    splitIndex = -1;
+  } else {
+    // month: full current calendar month, with forecast for days after today
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const todayKey = dayKey(today);
+    const days = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      days.push(new Date(d));
+    }
+    splitIndex = days.findIndex((d) => dayKey(d) > todayKey);
+  }
+
+  const days = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+
+  const series = days.map((d, i) => {
+    const base = genDay(d);
+    const isForecast = splitIndex >= 0 && i >= splitIndex;
+    if (!isForecast) return { ...base, isForecast: false };
+    // forecast: add small confidence band that widens with distance
+    const distance = i - splitIndex + 1;
+    const widen = 0.03 + distance * 0.008;
+    return {
+      ...base,
+      isForecast: true,
+      revenueLo: base.revenue * (1 - widen),
+      revenueHi: base.revenue * (1 + widen),
+      profitLo: base.profit * (1 - widen * 1.4),
+      profitHi: base.profit * (1 + widen * 1.4),
+      costLo: base.cost * (1 - widen * 0.9),
+      costHi: base.cost * (1 + widen * 0.9),
+    };
+  });
+
+  // previous-period series (same length, immediately preceding `start`)
+  const prevSeries = [];
+  const prevEnd = new Date(start);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - (days.length - 1));
+  for (let d = new Date(prevStart); d <= prevEnd; d.setDate(d.getDate() + 1)) {
+    prevSeries.push(genDay(new Date(d)));
+  }
+
+  return { series, splitIndex, prevSeries, start, end, today };
+}
+
+function sumKey(arr, key) {
+  return arr.reduce((s, r) => s + (r[key] || 0), 0);
+}
+
+function ForecastChart({ data, metric, color }) {
+  const { series, splitIndex } = data;
+  const w = 760, h = 300, pad = { l: 56, r: 16, t: 14, b: 32 };
+  const innerW = w - pad.l - pad.r, innerH = h - pad.t - pad.b;
+  const N = series.length;
+
+  const loKey = metric + "Lo", hiKey = metric + "Hi";
+  const all = [];
+  series.forEach((p) => {
+    all.push(p[metric]);
+    if (p.isForecast) {
+      all.push(p[loKey], p[hiKey]);
+    }
+  });
+  let max = Math.max(...all);
+  let min = Math.min(...all, 0);
+  const span = max - min || 1;
+  max += span * 0.08;
+  min -= span * 0.04;
+
+  const xAt = (i) => pad.l + (N === 1 ? innerW / 2 : (i / (N - 1)) * innerW);
+  const yAt = (v) => pad.t + innerH - ((v - min) / (max - min)) * innerH;
+
+  const actualPts = [];
+  const forecastPts = [];
+  series.forEach((p, i) => {
+    const point = [xAt(i), yAt(p[metric])];
+    if (!p.isForecast) {
+      actualPts.push(point);
+      if (splitIndex >= 0 && i === splitIndex - 1) forecastPts.push(point); // bridge
+    } else {
+      forecastPts.push(point);
+    }
+  });
+  const toPath = (pts) =>
+    pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+
+  // confidence band (forecast only)
+  let bandPath = "";
+  if (splitIndex >= 0) {
+    const upper = [];
+    const lower = [];
+    for (let i = splitIndex; i < N; i++) {
+      const p = series[i];
+      upper.push([xAt(i), yAt(p[hiKey])]);
+      lower.push([xAt(i), yAt(p[loKey])]);
+    }
+    if (upper.length) {
+      const up = upper.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+      const dn = lower
+        .slice()
+        .reverse()
+        .map((p) => "L" + p[0].toFixed(1) + " " + p[1].toFixed(1))
+        .join(" ");
+      bandPath = up + " " + dn + " Z";
+    }
+  }
+
+  const [hover, setHover] = useState(null);
+  const onMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const sx = (x / rect.width) * w;
+    const i = Math.round(((sx - pad.l) / innerW) * (N - 1));
+    if (i >= 0 && i < N) setHover(i);
+  };
+
+  // x-axis ticks: ~6 evenly spaced
+  const tickIdx = [];
+  const tickCount = Math.min(6, N);
+  for (let t = 0; t < tickCount; t++) {
+    tickIdx.push(Math.round((t / (tickCount - 1)) * (N - 1)));
+  }
+
+  // y-axis ticks
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+
+  const fmtAxis = (v) => {
+    const a = Math.abs(v);
+    if (a >= 1000) return "€" + Math.round(v / 1000) + "k";
+    return "€" + Math.round(v);
+  };
+
+  return (
+    <div className="qd-chart-wrap">
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        style={{ width: "100%", height: 300 }}
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+      >
+        {yTicks.map((t, i) => (
+          <line
+            key={i}
+            x1={pad.l}
+            x2={w - pad.r}
+            y1={pad.t + innerH * t}
+            y2={pad.t + innerH * t}
+            stroke="var(--qd-rule)"
+            strokeWidth="0.5"
+            strokeDasharray={i === yTicks.length - 1 ? "0" : "2 3"}
+          />
+        ))}
+        {yTicks.map((t, i) => {
+          const v = max - (max - min) * t;
+          return (
+            <text
+              key={i}
+              x={pad.l - 8}
+              y={pad.t + innerH * t + 3}
+              fontSize="9"
+              fontFamily="var(--font-mono), monospace"
+              fill="var(--qd-muted)"
+              textAnchor="end"
+            >
+              {fmtAxis(v)}
+            </text>
+          );
+        })}
+        {tickIdx.map((i) => {
+          const d = series[i].date;
+          return (
+            <text
+              key={i}
+              x={xAt(i)}
+              y={h - 10}
+              fontSize="9"
+              fontFamily="var(--font-mono), monospace"
+              fill="var(--qd-muted)"
+              textAnchor="middle"
+            >
+              {SHORT_MONTH[d.getMonth()]} {d.getDate()}
+            </text>
+          );
+        })}
+
+        {/* zero line if min < 0 */}
+        {min < 0 && (
+          <line
+            x1={pad.l}
+            x2={w - pad.r}
+            y1={yAt(0)}
+            y2={yAt(0)}
+            stroke="var(--qd-rule-2)"
+            strokeWidth="0.8"
+          />
+        )}
+
+        {/* forecast separator */}
+        {splitIndex > 0 && (
+          <>
+            <line
+              x1={xAt(splitIndex - 0.5)}
+              x2={xAt(splitIndex - 0.5)}
+              y1={pad.t}
+              y2={pad.t + innerH}
+              stroke="var(--qd-ink)"
+              strokeWidth="0.6"
+              strokeDasharray="4 3"
+              opacity="0.45"
+            />
+            <text
+              x={xAt(splitIndex - 0.5) + 4}
+              y={pad.t + 10}
+              fontSize="9"
+              fontFamily="var(--font-mono), monospace"
+              fill="var(--qd-muted)"
+            >
+              forecast →
+            </text>
+          </>
+        )}
+
+        {bandPath && <path d={bandPath} fill={color} opacity="0.10" />}
+
+        {/* actual line */}
+        {actualPts.length > 1 && (
+          <path d={toPath(actualPts)} stroke={color} strokeWidth="1.8" fill="none" />
+        )}
+        {/* forecast line dashed */}
+        {forecastPts.length > 1 && (
+          <path
+            d={toPath(forecastPts)}
+            stroke={color}
+            strokeWidth="1.6"
+            fill="none"
+            strokeDasharray="4 3"
+            opacity="0.85"
+          />
+        )}
+
+        {hover !== null && (
+          <>
+            <line
+              x1={xAt(hover)}
+              x2={xAt(hover)}
+              y1={pad.t}
+              y2={pad.t + innerH}
+              stroke="var(--qd-ink)"
+              strokeWidth="0.6"
+              strokeDasharray="2 3"
+            />
+            <circle cx={xAt(hover)} cy={yAt(series[hover][metric])} r="3.6" fill={color} />
+          </>
+        )}
+      </svg>
+      {hover !== null && (
+        <div className="qd-tooltip">
+          <div className="qd-tt-day">
+            {SHORT_MONTH[series[hover].date.getMonth()]} {series[hover].date.getDate()}
+            {series[hover].isForecast ? " · forecast" : ""}
+          </div>
+          <div className="qd-tt-row">
+            <span style={{ color: "#2f5d50" }}>● Revenue</span>
+            <span>{fmtMoney(series[hover].revenue)}</span>
+          </div>
+          <div className="qd-tt-row">
+            <span style={{ color: "#c8553d" }}>● Cost</span>
+            <span>{fmtMoney(series[hover].cost)}</span>
+          </div>
+          <div className="qd-tt-row qd-tt-total">
+            <span>Profit</span>
+            <span>{fmtMoney(series[hover].profit)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ForecastKPI({ label, headline, lo, hi, prev, color, format, hasForecast }) {
+  const v = useCount(headline);
+  const delta = prev > 0 ? ((headline - prev) / prev) * 100 : 0;
+  const isCost = label === "Projected cost" || label === "Cost";
+  const pos = isCost ? delta < 0 : delta > 0;
+  return (
+    <div className="qd-kpi">
+      <div className="qd-kpi-label">{label}</div>
+      <div className="qd-kpi-value" style={{ color }}>{format(v)}</div>
+      <div className={`qd-delta ${pos ? "pos" : "neg"}`}>
+        <span>{delta >= 0 ? "↑" : "↓"}</span>
+        <span>{Math.abs(delta).toFixed(1)}%</span>
+        <span className="qd-vs">vs prev</span>
+      </div>
+      {hasForecast && lo != null && hi != null && (
+        <div
+          className="qd-mono"
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            color: "var(--qd-muted)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <span style={{ letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 10 }}>
+            Range
+          </span>
+          <span style={{ color: "var(--qd-ink)", whiteSpace: "nowrap" }}>
+            {format(lo)} – {format(hi)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ForecastingPage() {
+  const [period, setPeriod] = useState("month");
+  const [metric, setMetric] = useState("revenue");
+
+  // Today is computed at mount so it stays stable per session but is real "today"
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const data = useMemo(() => buildForecastData(period, today), [period, today]);
+  const { series, splitIndex, prevSeries, start, end } = data;
+
+  const actualSeries = splitIndex >= 0 ? series.slice(0, splitIndex) : series;
+  const forecastSeries = splitIndex >= 0 ? series.slice(splitIndex) : [];
+
+  const actual = {
+    revenue: sumKey(actualSeries, "revenue"),
+    cost: sumKey(actualSeries, "cost"),
+    profit: sumKey(actualSeries, "profit"),
+  };
+  const forecastTotals = {
+    revenue: sumKey(forecastSeries, "revenue"),
+    cost: sumKey(forecastSeries, "cost"),
+    profit: sumKey(forecastSeries, "profit"),
+  };
+  const projected = {
+    revenue: actual.revenue + forecastTotals.revenue,
+    cost: actual.cost + forecastTotals.cost,
+    profit: actual.profit + forecastTotals.profit,
+  };
+  const projectedLo = {
+    revenue: actual.revenue + sumKey(forecastSeries, "revenueLo"),
+    cost: actual.cost + sumKey(forecastSeries, "costLo"),
+    profit: actual.profit + sumKey(forecastSeries, "profitLo"),
+  };
+  const projectedHi = {
+    revenue: actual.revenue + sumKey(forecastSeries, "revenueHi"),
+    cost: actual.cost + sumKey(forecastSeries, "costHi"),
+    profit: actual.profit + sumKey(forecastSeries, "profitHi"),
+  };
+  const hasForecast = forecastSeries.length > 0;
+  const prev = {
+    revenue: sumKey(prevSeries, "revenue"),
+    cost: sumKey(prevSeries, "cost"),
+    profit: sumKey(prevSeries, "profit"),
+  };
+
+  // Run-rates based on actual portion
+  const elapsedDays = Math.max(1, actualSeries.length);
+  const dailyRunRate = {
+    revenue: actual.revenue / elapsedDays,
+    cost: actual.cost / elapsedDays,
+    profit: actual.profit / elapsedDays,
+  };
+  const annualRunRate = {
+    revenue: dailyRunRate.revenue * 365,
+    cost: dailyRunRate.cost * 365,
+    profit: dailyRunRate.profit * 365,
+  };
+
+  const monthName = MONTH_NAMES[today.getMonth()];
+  const todayLabel = today.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const periodSubLabel =
+    period === "7d"
+      ? `Last 7 days · ${SHORT_MONTH[start.getMonth()]} ${start.getDate()} → ${SHORT_MONTH[end.getMonth()]} ${end.getDate()}`
+      : period === "30d"
+      ? `Last 30 days · ${SHORT_MONTH[start.getMonth()]} ${start.getDate()} → ${SHORT_MONTH[end.getMonth()]} ${end.getDate()}`
+      : `${monthName} ${today.getFullYear()} · day ${today.getDate()} of ${end.getDate()}`;
+
+  const metricColor = {
+    revenue: "#2f5d50",
+    cost: "#c8553d",
+    profit: "#1a1916",
+  };
+
+  // Best / worst day in actual
+  const bestDay = actualSeries.length
+    ? actualSeries.reduce((a, b) => (b[metric] > a[metric] ? b : a))
+    : null;
+  const worstDay = actualSeries.length
+    ? actualSeries.reduce((a, b) => (b[metric] < a[metric] ? b : a))
+    : null;
+
+  // Margin
+  const margin = projected.revenue > 0 ? (projected.profit / projected.revenue) * 100 : 0;
+  const marginActual = actual.revenue > 0 ? (actual.profit / actual.revenue) * 100 : 0;
+
+  // Build mini breakdown rows: by week if month/30d, else daily
+  const groupRows = useMemo(() => {
+    if (period === "7d") {
+      return series.map((p) => ({
+        label: p.date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }),
+        ...p,
+        forecast: p.isForecast,
+      }));
+    }
+    // group by ISO week
+    const map = new Map();
+    series.forEach((p) => {
+      const d = new Date(p.date);
+      // week starting Monday
+      const day = (d.getDay() + 6) % 7;
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - day);
+      const key = dayKey(weekStart);
+      if (!map.has(key)) {
+        map.set(key, {
+          label: `Week of ${SHORT_MONTH[weekStart.getMonth()]} ${weekStart.getDate()}`,
+          revenue: 0,
+          cost: 0,
+          profit: 0,
+          forecast: true,
+          start: weekStart,
+        });
+      }
+      const row = map.get(key);
+      row.revenue += p.revenue;
+      row.cost += p.cost;
+      row.profit += p.profit;
+      row.forecast = row.forecast && p.isForecast;
+    });
+    return Array.from(map.values());
+  }, [series, period]);
+
+  return (
+    <>
+      <PageHead
+        num="01 — Forecasting"
+        title="Demand"
+        em="forecasting."
+        sub={`Revenue, profit, and cost — actuals through ${todayLabel}, projected to month-end with confidence bands.`}
+      />
+
+      <div className="qd-subbar">
+        <div className="qd-range">
+          {[
+            { id: "7d", label: "7d" },
+            { id: "30d", label: "30d" },
+            { id: "month", label: `This month — ${monthName}` },
+          ].map((r) => (
+            <button
+              type="button"
+              key={r.id}
+              className={period === r.id ? "active" : ""}
+              onClick={() => setPeriod(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <span className="qd-pill">
+          <span className="qd-live-dot" /> {periodSubLabel}
+        </span>
+        <div className="qd-spacer" />
+        <span className="qd-pill">Today · {SHORT_MONTH[today.getMonth()]} {today.getDate()}, {today.getFullYear()}</span>
+        <button type="button" className="qd-btn">Export</button>
+        <button type="button" className="qd-btn primary">Adjust assumptions</button>
+      </div>
+
+      <div className="qd-kpi-grid qd-reveal">
+        <ForecastKPI
+          label={hasForecast ? "Projected revenue" : "Revenue"}
+          headline={projected.revenue}
+          lo={projectedLo.revenue}
+          hi={projectedHi.revenue}
+          prev={prev.revenue}
+          color="#2f5d50"
+          format={fmtMoney}
+          hasForecast={hasForecast}
+        />
+        <ForecastKPI
+          label={hasForecast ? "Projected profit" : "Profit"}
+          headline={projected.profit}
+          lo={projectedLo.profit}
+          hi={projectedHi.profit}
+          prev={prev.profit}
+          color="#1a1916"
+          format={fmtMoney}
+          hasForecast={hasForecast}
+        />
+        <ForecastKPI
+          label={hasForecast ? "Projected cost" : "Cost"}
+          headline={projected.cost}
+          lo={projectedLo.cost}
+          hi={projectedHi.cost}
+          prev={prev.cost}
+          color="#c8553d"
+          format={fmtMoney}
+          hasForecast={hasForecast}
+        />
+        <ForecastKPI
+          label={hasForecast ? "Projected margin" : "Margin"}
+          headline={margin}
+          lo={projectedHi.revenue > 0 ? (projectedLo.profit / projectedHi.revenue) * 100 : 0}
+          hi={projectedLo.revenue > 0 ? (projectedHi.profit / projectedLo.revenue) * 100 : 0}
+          prev={prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0}
+          color="var(--qd-ink)"
+          format={(v) => v.toFixed(1) + "%"}
+          hasForecast={hasForecast}
+        />
+      </div>
+
+      <div className="qd-row-2-1 qd-reveal" style={{ animationDelay: "0.05s" }}>
+        <div className="qd-card">
+          <div className="qd-card-head">
+            <div>
+              <div className="qd-num">02 — Trajectory</div>
+              <h3>
+                {metric === "revenue" ? "Revenue" : metric === "profit" ? "Profit" : "Cost"} ·{" "}
+                {period === "month" ? `${monthName} ${today.getFullYear()}` : period === "7d" ? "last 7 days" : "last 30 days"}
+              </h3>
+              <div className="qd-card-sub">
+                {splitIndex >= 0
+                  ? <>Solid line = actuals · dashed = forecast with <em>±1σ band</em></>
+                  : "Daily, blended across all channels"}
+              </div>
+            </div>
+            <div className="qd-range">
+              {[
+                { id: "revenue", label: "Revenue" },
+                { id: "profit", label: "Profit" },
+                { id: "cost", label: "Cost" },
+              ].map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  className={metric === m.id ? "active" : ""}
+                  onClick={() => setMetric(m.id)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ForecastChart data={data} metric={metric} color={metricColor[metric]} />
+          <div className="qd-best-worst">
+            <div>
+              <div className="qd-mini-label">Best day so far</div>
+              {bestDay
+                ? `${fmtMoney(bestDay[metric])} · ${bestDay.date.toLocaleDateString("en-GB", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}`
+                : "—"}
+            </div>
+            <div>
+              <div className="qd-mini-label">Worst day so far</div>
+              {worstDay
+                ? `${fmtMoney(worstDay[metric])} · ${worstDay.date.toLocaleDateString("en-GB", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}`
+                : "—"}
+            </div>
+          </div>
+        </div>
+
+        <div className="qd-side-stack">
+          <div className="qd-card">
+            <div className="qd-card-head">
+              <div>
+                <div className="qd-num">03 — Run-rate</div>
+                <h3>Pace, projected forward</h3>
+                <div className="qd-card-sub">Based on {elapsedDays} actual day{elapsedDays === 1 ? "" : "s"}</div>
+              </div>
+            </div>
+            {[
+              { k: "Daily revenue", v: dailyRunRate.revenue, c: "#2f5d50" },
+              { k: "Daily profit", v: dailyRunRate.profit, c: "#1a1916" },
+              { k: "Daily cost", v: dailyRunRate.cost, c: "#c8553d" },
+            ].map((r) => (
+              <div key={r.k} className="qd-rule-row">
+                <span>{r.k}</span>
+                <span className="qd-mono qd-muted-text">/ day</span>
+                <span className="qd-mono" style={{ color: r.c, fontWeight: 600 }}>{fmtMoney(r.v)}</span>
+              </div>
+            ))}
+            <div style={{ height: 10 }} />
+            {[
+              { k: "Annualized revenue", v: annualRunRate.revenue, c: "#2f5d50" },
+              { k: "Annualized profit", v: annualRunRate.profit, c: "#1a1916" },
+              { k: "Annualized cost", v: annualRunRate.cost, c: "#c8553d" },
+            ].map((r) => (
+              <div key={r.k} className="qd-rule-row">
+                <span>{r.k}</span>
+                <span className="qd-mono qd-muted-text">/ year</span>
+                <span className="qd-mono" style={{ color: r.c, fontWeight: 600 }}>{fmtMoney(r.v)}</span>
+              </div>
+            ))}
+          </div>
+
+          {period === "month" && splitIndex >= 0 && (
+            <div className="qd-card">
+              <div className="qd-card-head">
+                <div>
+                  <div className="qd-num">04 — Month-end</div>
+                  <h3>Projected close, {monthName}</h3>
+                  <div className="qd-card-sub">
+                    {actualSeries.length} actual + {forecastSeries.length} forecast day{forecastSeries.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <div className="qd-mini-label">Revenue</div>
+                  <div className="qd-big-num" style={{ color: "#2f5d50" }}>{fmtMoney(projected.revenue)}</div>
+                  <div className="qd-mono" style={{ fontSize: 11, color: "var(--qd-muted)" }}>
+                    {fmtMoney(actual.revenue)} actual + {fmtMoney(forecastTotals.revenue)} forecast
+                  </div>
+                </div>
+                <div>
+                  <div className="qd-mini-label">Profit</div>
+                  <div className="qd-big-num">{fmtMoney(projected.profit)}</div>
+                  <div className="qd-mono" style={{ fontSize: 11, color: "var(--qd-muted)" }}>
+                    margin {margin.toFixed(1)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="qd-mini-label">Cost</div>
+                  <div className="qd-big-num" style={{ color: "#c8553d" }}>{fmtMoney(projected.cost)}</div>
+                  <div className="qd-mono" style={{ fontSize: 11, color: "var(--qd-muted)" }}>
+                    {((projected.cost / projected.revenue) * 100).toFixed(1)}% of revenue
+                  </div>
+                </div>
+                <div>
+                  <div className="qd-mini-label">vs prev month</div>
+                  <div className="qd-big-num">
+                    {prev.revenue > 0
+                      ? ((projected.revenue / prev.revenue - 1) * 100).toFixed(1) + "%"
+                      : "—"}
+                  </div>
+                  <div className="qd-mono" style={{ fontSize: 11, color: "var(--qd-muted)" }}>
+                    revenue trajectory
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="qd-card qd-reveal" style={{ animationDelay: "0.1s" }}>
+        <div className="qd-card-head">
+          <div>
+            <div className="qd-num">05 — Breakdown</div>
+            <h3>{period === "7d" ? "Daily" : "Weekly"} detail</h3>
+            <div className="qd-card-sub">Forecast rows show the model's central estimate</div>
+          </div>
+          <div className="qd-legend">
+            <span className="qd-li"><span className="qd-sw" style={{ background: "#2f5d50" }} />Revenue</span>
+            <span className="qd-li"><span className="qd-sw" style={{ background: "#c8553d" }} />Cost</span>
+            <span className="qd-li"><span className="qd-sw" style={{ background: "#1a1916" }} />Profit</span>
+          </div>
+        </div>
+        <table className="qd-table">
+          <thead>
+            <tr>
+              <th>{period === "7d" ? "Day" : "Week"}</th>
+              <th style={{ textAlign: "right" }}>Revenue</th>
+              <th style={{ textAlign: "right" }}>Cost</th>
+              <th style={{ textAlign: "right" }}>Profit</th>
+              <th style={{ textAlign: "right" }}>Margin</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupRows.map((r, i) => {
+              const m = r.revenue > 0 ? (r.profit / r.revenue) * 100 : 0;
+              return (
+                <tr key={i}>
+                  <td>{r.label}</td>
+                  <td className="qd-mono" style={{ textAlign: "right", color: "#2f5d50" }}>{fmtMoney(r.revenue)}</td>
+                  <td className="qd-mono" style={{ textAlign: "right", color: "#c8553d" }}>{fmtMoney(r.cost)}</td>
+                  <td className="qd-mono" style={{ textAlign: "right", fontWeight: 600 }}>{fmtMoney(r.profit)}</td>
+                  <td className="qd-mono" style={{ textAlign: "right" }}>{m.toFixed(1)}%</td>
+                  <td>
+                    <span className={`qd-status ${r.forecast ? "warn" : "ok"}`}>
+                      {r.forecast ? "Forecast" : "Actual"}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 /* ---------- Placeholder ---------- */
 function PlaceholderPage({ num, title, em, sub }) {
   return (
@@ -1188,7 +1965,6 @@ export default function QuiverInteractiveDashboard() {
     analyst: { num: "02 — AI", title: "Virtual", em: "Analyst.", sub: "Quiver tuned on your data." },
     campaigns: { num: "01 — Workspace", title: "All", em: "campaigns.", sub: "47 active across 4 channels." },
     experiments: { num: "01 — Workspace", title: "A/B", em: "experiments.", sub: "Hold-out tests, geo-lift, creative." },
-    forecasting: { num: "01 — Workspace", title: "Demand", em: "forecasting.", sub: "Seasonality-adjusted spend planning." },
     settings: { num: "04 — Settings", title: "Workspace", em: "settings.", sub: "Team, billing, integrations." },
     docs: { num: "04 — Settings", title: "Documentation", em: "", sub: "Guides, API reference, playbooks." },
   };
@@ -1198,6 +1974,7 @@ export default function QuiverInteractiveDashboard() {
     if (current === "connections") return <DataConnectionsPage />;
     if (current === "reports") return <ReportsPage />;
     if (current === "alerts") return <AlertsPage />;
+    if (current === "forecasting") return <ForecastingPage />;
     return <PlaceholderPage {...placeholders[current]} />;
   };
 
