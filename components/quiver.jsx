@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from 'react';
 import { ArrowIcon, CheckIcon } from './icons';
+import QuiverInteractiveDashboard from './QuiverInteractiveDashboard';
 
 function QuiverDashboard() {
   const channels = [
@@ -20,7 +24,7 @@ function QuiverDashboard() {
     <div className="dash">
       <div className="dash-top">
         <div className="dots"><i></i><i></i><i></i></div>
-        <div className="url">quiver.olai.io / dashboard / acme-co</div>
+        <div className="url">quiver.olaibusiness.se / dashboard / acme-co</div>
       </div>
       <div className="dash-body">
         <div className="dash-card" style={{ gridRow: 'span 1' }}>
@@ -76,45 +80,80 @@ const quiverFeatures = [
 ];
 
 export default function Quiver() {
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
+
   return (
-    <section className="block quiver" id="quiver">
-      <div className="wrap">
-        <div className="section-label">
-          <span className="num">03</span>
-          <span className="line"></span>
-          <span className="lbl">Product · Quiver</span>
-        </div>
-        <div className="quiver-grid">
-          <div>
-            <div className="quiver-tag">
-              <span className="pill">Quiver</span>
-              <span style={{ color: 'var(--fg-3)' }}>Our intelligence platform</span>
-            </div>
-            <h2>All your channels.<br />One source of truth.</h2>
-            <p className="quiver-sub">
-              Quiver unifies ad data across every platform you run, surfaces the patterns no dashboard catches, and turns reporting into decisions — not slides.
-            </p>
-            <div className="quiver-feats">
-              {quiverFeatures.map((f) => (
-                <div className="qf" key={f.t}>
-                  <span className="qf-bullet"><CheckIcon /></span>
-                  <div className="qf-text">
-                    <h4>{f.t}</h4>
-                    <p>{f.d}</p>
+    <>
+      <section className="block quiver" id="quiver">
+        <div className="wrap">
+          <div className="section-label">
+            <span className="num">03</span>
+            <span className="line"></span>
+            <span className="lbl">Product · Quiver</span>
+          </div>
+          <div className="quiver-grid">
+            <div>
+              <div className="quiver-tag">
+                <span className="pill">Quiver</span>
+                <span style={{ color: 'var(--fg-3)' }}>Our intelligence platform</span>
+              </div>
+              <h2>All your channels.<br />One source of truth.</h2>
+              <p className="quiver-sub">
+                Quiver unifies ad data across every platform you run, surfaces the patterns no dashboard catches, and turns reporting into decisions — not slides.
+              </p>
+              <div className="quiver-feats">
+                {quiverFeatures.map((f) => (
+                  <div className="qf" key={f.t}>
+                    <span className="qf-bullet"><CheckIcon /></span>
+                    <div className="qf-text">
+                      <h4>{f.t}</h4>
+                      <p>{f.d}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="quiver-cta">
+                <a href="#contact" className="btn">Get in touch <span className="arr"><ArrowIcon size={13} /></span></a>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => setIsDemoOpen(true)}
+                >
+                  See a live demo
+                </button>
+              </div>
             </div>
-            <div className="quiver-cta">
-              <a href="#contact" className="btn">Get in touch <span className="arr"><ArrowIcon size={13} /></span></a>
-              <a href="#contact" className="btn ghost">See a live demo</a>
+            <div>
+              <QuiverDashboard />
             </div>
-          </div>
-          <div>
-            <QuiverDashboard />
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {isDemoOpen && (
+        <div
+          className="quiver-demo-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Quiver live demo"
+          onClick={() => setIsDemoOpen(false)}
+        >
+          <div className="quiver-demo-content" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="quiver-demo-close"
+              aria-label="Close live demo"
+              onClick={() => setIsDemoOpen(false)}
+            >
+              Close
+            </button>
+            <div className="quiver-demo-shell">
+              <QuiverInteractiveDashboard />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
+
