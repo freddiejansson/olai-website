@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
+import { ArrowIcon } from "./icons";
+import { postContactLead } from "@/lib/contact-lead";
 
 /* ---------- Utilities ---------- */
 const seed = (a) => {
@@ -1802,17 +1804,152 @@ function ForecastingPage() {
 }
 
 /* ---------- Placeholder ---------- */
+function PlaceholderMockBackdrop() {
+  return (
+    <div className="qd-ph-mock" aria-hidden>
+      <div className="qd-ph-mock-toolbar">
+        <span className="qd-ph-mock-crumb" />
+        <span className="qd-ph-mock-pill" />
+        <span className="qd-ph-mock-seg" />
+      </div>
+      <div className="qd-ph-mock-kpis">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="qd-ph-mock-kpi">
+            <div className="qd-ph-mock-kpi-h" />
+            <div className="qd-ph-mock-kpi-v" />
+            <div className="qd-ph-mock-kpi-spark" />
+          </div>
+        ))}
+      </div>
+      <div className="qd-ph-mock-cols">
+        <div className="qd-ph-mock-card">
+          <div className="qd-ph-mock-card-h" />
+          <svg className="qd-ph-mock-chart" viewBox="0 0 400 120" preserveAspectRatio="none">
+            <path
+              d="M0,85 C60,30 100,100 160,55 S280,25 400,45"
+              fill="none"
+              stroke="#2f5d50"
+              strokeWidth="2.5"
+              opacity="0.55"
+            />
+            <path
+              d="M0,95 C80,70 140,105 220,75 S320,90 400,70"
+              fill="none"
+              stroke="#c8553d"
+              strokeWidth="2.5"
+              opacity="0.55"
+            />
+          </svg>
+        </div>
+        <div className="qd-ph-mock-card qd-ph-mock-card-donut">
+          <div className="qd-ph-mock-card-h short" />
+          <div className="qd-ph-mock-donut">
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#1a1916" strokeWidth="14" opacity="0.35" />
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                fill="none"
+                stroke="#c8553d"
+                strokeWidth="14"
+                strokeDasharray="72 167"
+                transform="rotate(-90 50 50)"
+                opacity="0.45"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                fill="none"
+                stroke="#2f5d50"
+                strokeWidth="14"
+                strokeDasharray="48 191"
+                strokeDashoffset="-72"
+                transform="rotate(-90 50 50)"
+                opacity="0.45"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div className="qd-ph-mock-rows">
+        <div className="qd-ph-mock-barline" />
+        <div className="qd-ph-mock-barline mid" />
+        <div className="qd-ph-mock-barline short" />
+      </div>
+      <div className="qd-ph-mock-spacer" aria-hidden />
+    </div>
+  );
+}
+
 function PlaceholderPage({ num, title, em, sub }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [err, setErr] = useState(null);
+
   return (
     <>
       <PageHead num={num} title={title} em={em} sub={sub} />
-      <div className="qd-card qd-reveal qd-placeholder">
-        <div className="qd-mini-label">Module — coming online</div>
-        <div className="qd-placeholder-title">
-          This screen is part of the <em>full Quiver</em> shell.
+      <div className="qd-placeholder-scene qd-reveal">
+        <div className="qd-placeholder-bg">
+          <div className="qd-placeholder-bg-blur">
+            <PlaceholderMockBackdrop />
+          </div>
+          <div className="qd-placeholder-bg-veil" />
         </div>
-        <div className="qd-placeholder-sub">
-          Click Home, Data Connections, Reports, or Alerts in the sidebar to see the wired-up screens.
+        <div className="qd-placeholder-fg">
+          <div className="qd-placeholder-panel">
+            <div className="qd-placeholder-panel-title">
+              This section is part of the <em>full Quiver</em> shell.
+            </div>
+            <div className="qd-placeholder-panel-sub">
+              Use the sidebar to explore live screens — Home, Data connections, Reports, Forecasting, and more.
+            </div>
+            <form
+              className="qd-placeholder-ct-form"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!email.trim() || pending || sent) return;
+                setErr(null);
+                setPending(true);
+                try {
+                  await postContactLead({ email, source: "quiver-demo" });
+                  setSent(true);
+                } catch (er) {
+                  setErr(er instanceof Error ? er.message : "Something went wrong.");
+                } finally {
+                  setPending(false);
+                }
+              }}
+            >
+              <input
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={pending || sent}
+                required
+              />
+              <button type="submit" className="btn" disabled={pending || sent}>
+                {sent
+                  ? "Thanks — we'll be in touch ✓"
+                  : pending
+                    ? "Sending…"
+                    : (
+                      <>
+                        Get in touch <span className="arr"><ArrowIcon size={13} /></span>
+                      </>
+                    )}
+              </button>
+            </form>
+            {err ? <p className="qd-placeholder-ct-err">{err}</p> : null}
+            <p className="qd-placeholder-ct-alt">
+              Or reach us at{" "}
+              <a href="mailto:hello@olaibusiness.se">hello@olaibusiness.se</a>
+            </p>
+          </div>
         </div>
       </div>
     </>
@@ -1946,6 +2083,11 @@ function VirtualAnalyst() {
 export default function QuiverInteractiveDashboard() {
   const [current, setCurrent] = useState("home");
   const [range, setRange] = useState("30d");
+  const mainRef = useRef(null);
+
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [current]);
 
   const titles = {
     home: "Home",
@@ -1982,7 +2124,7 @@ export default function QuiverInteractiveDashboard() {
     <div className="qd-app">
       <div className="qd-bg-motif" />
       <Sidebar current={current} setCurrent={setCurrent} />
-      <main className="qd-main">
+      <main ref={mainRef} className="qd-main">
         <Topbar here={titles[current]} range={range} setRange={setRange} />
         {renderPage()}
       </main>
