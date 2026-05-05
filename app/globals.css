@@ -928,6 +928,7 @@ section.block {
   position: relative;
   cursor: pointer;
   transition: background 0.2s ease;
+  min-height: 132px;
 }
 .qd-kpi:last-child { border-right: none; }
 .qd-kpi:hover { background: var(--qd-paper-2); }
@@ -942,6 +943,9 @@ section.block {
   font-size: 30px; line-height: 1.1;
   letter-spacing: -0.025em;
   margin-top: 8px;
+  min-height: 33px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .qd-delta {
   display: inline-flex; align-items: center; gap: 4px;
