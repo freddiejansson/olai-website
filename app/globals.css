@@ -928,13 +928,17 @@ section.block {
   position: relative;
   cursor: pointer;
   transition: background 0.2s ease;
+  min-height: 132px;
 }
 .qd-kpi:last-child { border-right: none; }
 .qd-kpi:hover { background: var(--qd-paper-2); }
 .qd-kpi-label {
   font-family: var(--font-mono), monospace;
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+  font-size: 10px; line-height: 1.2;
+  text-transform: uppercase; letter-spacing: 0.14em;
   color: var(--qd-muted);
+  min-height: 2.4em;
+  display: block;
 }
 .qd-kpi-value {
   font-family: var(--font-space), 'Space Grotesk', sans-serif;
@@ -942,6 +946,9 @@ section.block {
   font-size: 30px; line-height: 1.1;
   letter-spacing: -0.025em;
   margin-top: 8px;
+  min-height: 33px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .qd-delta {
   display: inline-flex; align-items: center; gap: 4px;
