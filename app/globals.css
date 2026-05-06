@@ -1920,6 +1920,24 @@ section.block {
   .qd-main { padding: 20px; }
 }
 
+@media (max-width: 720px) {
+  .qd-kpi { padding: 14px 12px 12px; min-height: 116px; }
+  .qd-kpi-value {
+    font-size: clamp(18px, 5.2vw, 26px);
+    min-height: 26px;
+  }
+  .qd-kpi-label { font-size: 9px; letter-spacing: 0.12em; min-height: 2.2em; }
+  .qd-delta { font-size: 10px; }
+  .qd-spark { height: 22px; }
+}
+
+@media (max-width: 420px) {
+  .qd-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qd-kpi:nth-child(2n) { border-right: none; }
+  .qd-kpi:nth-child(2n+1) { border-right: 1px solid var(--qd-rule); }
+  .qd-kpi-value { font-size: clamp(20px, 7vw, 28px); }
+}
+
 /* Dashboard mockup */
 .dash {
   border-radius: 16px;
