@@ -38,7 +38,7 @@ export default function Footer() {
         </div>
         <div className="footer-bot">
           <span>© 2026 Olai Business Consulting AB · olaibusiness.se</span>
-          <span>Designed in Sundsvall · Engineered everywhere</span>
+          <span><a href="/privacy">Privacy Policy</a> · Designed in Sundsvall · Engineered everywhere</span>
         </div>
       </div>
     </footer>

@@ -1,0 +1,185 @@
+{
+  "_meta": {
+    "generator": "https://bridgetoagent.com",
+    "version": "1.1",
+    "generated_at": "2026-05-07T08:04:24.452Z",
+    "platform": {
+      "cms": "unknown",
+      "cms_version": null,
+      "cms_confidence": 0,
+      "ecom": null,
+      "forms": [
+        "native"
+      ],
+      "scheduling": null,
+      "chat": null,
+      "analytics": []
+    },
+    "critique_notes": "Removed 'lead_generation' — it is a duplicate of 'contact_form' (same location, same fields, same form). Fixed 'demo_request' location from #quiver (a scroll anchor, not a form) to #contact where the actual form lives. Replaced 'social_connect' location from the placeholder '#' anchor to the inferred LinkedIn company URL. Tightened 'contact_form' success_indicator to describe specific on-page signals rather than vague \"confirmation message or redirect\".",
+    "repair_log": [
+      {
+        "kind": "rewrote_action_location",
+        "intent": "category_navigation",
+        "from": "https://www.olaibusiness.se/#services",
+        "to": "https://www.olaibusiness.se/"
+      },
+      {
+        "kind": "rewrote_action_location",
+        "intent": "product_exploration",
+        "from": "https://www.olaibusiness.se/#quiver",
+        "to": "https://www.olaibusiness.se/"
+      },
+      {
+        "kind": "rewrote_action_location",
+        "intent": "information_retrieval",
+        "from": "https://www.olaibusiness.se/#why",
+        "to": "https://www.olaibusiness.se/"
+      },
+      {
+        "kind": "rewrote_action_location",
+        "intent": "contact_form",
+        "from": "https://www.olaibusiness.se/#contact",
+        "to": "https://www.olaibusiness.se/"
+      },
+      {
+        "kind": "rewrote_action_location",
+        "intent": "demo_request",
+        "from": "https://www.olaibusiness.se/#contact",
+        "to": "https://www.olaibusiness.se/"
+      },
+      {
+        "kind": "dropped_action_404",
+        "intent": "social_connect",
+        "location": "https://www.linkedin.com/company/olaibusiness"
+      }
+    ]
+  },
+  "site_goal": "Olai is a Swedish data and growth consultancy offering performance marketing, data engineering, analytics, and their proprietary Quiver intelligence platform. An autonomous agent can primarily learn about Olai's services and contact the team to initiate a consulting engagement or request a live demo of Quiver.",
+  "actions": [
+    {
+      "intent": "direct_email_contact",
+      "description": "Contact Olai directly via email using the displayed address hello@olaibusiness.se, bypassing the web form entirely.",
+      "location": "mailto:hello@olaibusiness.se",
+      "parameters": [
+        {
+          "name": "to",
+          "type": "email",
+          "required": true,
+          "description": "Must be hello@olaibusiness.se."
+        },
+        {
+          "name": "subject",
+          "type": "string",
+          "required": true,
+          "description": "Brief subject line describing the enquiry, e.g. 'Quiver demo request' or 'Performance marketing consultation'."
+        },
+        {
+          "name": "body",
+          "type": "textarea",
+          "required": true,
+          "description": "Full message body describing the data challenge, media question, or consulting need."
+        }
+      ],
+      "success_indicator": "Email client opens and sends successfully; no on-site confirmation — success is delivery to hello@olaibusiness.se."
+    },
+    {
+      "intent": "category_navigation",
+      "description": "Navigate to the Services section of the homepage to browse Olai's four practice areas: Performance Marketing, Data & Analytics, Quiver, and Consulting & Strategy.",
+      "location": "https://www.olaibusiness.se/",
+      "parameters": [],
+      "success_indicator": "Page scrolls to the #services section displaying the four service cards (Performance Marketing, Data & Analytics, Quiver, Consulting & Strategy)."
+    },
+    {
+      "intent": "product_exploration",
+      "description": "Navigate to the Quiver product section to learn about the proprietary intelligence platform features including cross-channel analytics, automated reporting, real-time monitoring, custom alerting, profit-based signals, and warehouse-native integrations.",
+      "location": "https://www.olaibusiness.se/",
+      "parameters": [],
+      "success_indicator": "Page scrolls to the #quiver section displaying Quiver feature tiles and the interactive dashboard preview (quiver.olaibusiness.se/dashboard/acme-co)."
+    },
+    {
+      "intent": "information_retrieval",
+      "description": "Navigate to the 'Why Olai' section to understand the four differentiators: tech-native infrastructure, full-funnel profit-first clarity, platform-agnostic honesty, and Swedish/Nordic roots.",
+      "location": "https://www.olaibusiness.se/",
+      "parameters": [],
+      "success_indicator": "Page scrolls to the #why section displaying the four 'Why Olai' reason cards."
+    },
+    {
+      "intent": "live_demo_access",
+      "description": "Open the interactive Quiver dashboard demo hosted at quiver.olaibusiness.se to explore the live product interface showing spend, revenue, profit margin, ROAS, channel mix, and campaign data.",
+      "location": "https://quiver.olaibusiness.se/dashboard/acme-co",
+      "parameters": [],
+      "success_indicator": "Browser navigates to quiver.olaibusiness.se/dashboard/acme-co and the interactive Quiver dashboard loads showing Acme Co. metrics."
+    },
+    {
+      "intent": "contact_form",
+      "description": "Submit the main contact form on the homepage (#contact section) to reach the Olai team about data, media, or consulting needs. The form copy reads: 'Send us a line about your data, your media, or the question keeping you up at night.' Note: DOM extraction did not expose verbatim field name= attributes; parameter names reflect native form conventions.",
+      "location": "https://www.olaibusiness.se/",
+      "parameters": [
+        {
+          "name": "full_name",
+          "type": "string",
+          "required": true,
+          "description": "The submitter's full name."
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "description": "Contact email address for Olai to reply to."
+        },
+        {
+          "name": "message",
+          "type": "textarea",
+          "required": true,
+          "description": "Description of the data challenge, media question, or consulting need."
+        },
+        {
+          "name": "company",
+          "type": "string",
+          "required": false,
+          "description": "The submitter's company or organisation name."
+        },
+        {
+          "name": "phone",
+          "type": "tel",
+          "required": false,
+          "description": "Optional phone number for follow-up."
+        }
+      ],
+      "success_indicator": "A confirmation message appears in the #contact section of https://www.olaibusiness.se/ after submission (e.g. a thank-you state or on-page confirmation text); alternatively the form fields are cleared/hidden indicating successful send."
+    },
+    {
+      "intent": "demo_request",
+      "description": "Request a live demo of the Quiver intelligence platform — Olai's proprietary cross-channel ad analytics tool — by using the 'See a live demo' or 'Get in touch' CTAs in the Quiver section, which route to the #contact form.",
+      "location": "https://www.olaibusiness.se/",
+      "parameters": [
+        {
+          "name": "full_name",
+          "type": "string",
+          "required": true,
+          "description": "The requester's full name."
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "description": "Work email address for demo scheduling."
+        },
+        {
+          "name": "company",
+          "type": "string",
+          "required": false,
+          "description": "Company or organisation name to tailor the Quiver demo."
+        },
+        {
+          "name": "message",
+          "type": "textarea",
+          "required": false,
+          "description": "Specific questions or context for the demo, e.g. which ad channels are active (Meta, Google, TikTok, Snap) and current measurement stack."
+        }
+      ],
+      "success_indicator": "Confirmation message displayed in the #contact section after form submission, indicating Olai will follow up to schedule the Quiver demo."
+    }
+  ],
+  "api_shortcuts": []
+}

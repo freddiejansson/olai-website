@@ -26,6 +26,19 @@ export const metadata = {
   title: 'Olai — Data and advertising, built as one.',
   description:
     'Olai is a Swedish data and growth consultancy. We run performance media, build the measurement to prove it, and ship the platform that ties it all together.',
+  alternates: {
+    types: {
+      'application/json': [
+        { url: '/agents.json', title: 'Agent Action Map' },
+      ],
+      'text/plain': [
+        { url: '/llms.txt', title: 'LLM Context' },
+      ],
+      'text/markdown': [
+        { url: '/agent-instructions.md', title: 'Agent Runbook' },
+      ],
+    },
+  },
 };
 
 export const viewport = {
