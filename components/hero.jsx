@@ -1,11 +1,12 @@
 import HeroCanvas from './hero-canvas';
+import TypewriterWord from './typewriter-word';
 import { ArrowIcon } from './icons';
 
 const HERO = {
   eyebrow: 'PERFORMANCE × DATA ENGINEERING',
   pre: 'The signal',
   mid: 'beneath your',
-  em: 'spend.',
+  words: ['ads', 'clicks', 'conversions', 'customers'],
   sub: 'Olai is a Swedish data and growth consultancy. We run performance media, build the measurement to prove it, and ship the platform that ties it all together.',
 };
 
@@ -32,7 +33,8 @@ export default function Hero() {
         </div>
         <h1 className="hero-title">
           {HERO.pre}<br />
-          {HERO.mid} <em>{HERO.em}</em>
+          {HERO.mid}<br />
+          <em><TypewriterWord words={HERO.words} />.</em>
         </h1>
         <p className="hero-sub">{HERO.sub}</p>
         <div className="hero-cta">
