@@ -1,5 +1,7 @@
 import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import CookieConsent from '@/components/cookie-consent';
+import ConsentMode, { GtmNoscript } from '@/components/consent-mode';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,6 +28,19 @@ export const metadata = {
   title: 'Olai — Data and advertising, built as one.',
   description:
     'Olai is a Swedish data and growth consultancy. We run performance media, build the measurement to prove it, and ship the platform that ties it all together.',
+  alternates: {
+    types: {
+      'application/json': [
+        { url: '/agents.json', title: 'Agent Action Map' },
+      ],
+      'text/plain': [
+        { url: '/llms.txt', title: 'LLM Context' },
+      ],
+      'text/markdown': [
+        { url: '/agent-instructions.md', title: 'Agent Runbook' },
+      ],
+    },
+  },
 };
 
 export const viewport = {
@@ -39,7 +54,14 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
-      <body>{children}</body>
+      <head>
+        <ConsentMode />
+      </head>
+      <body>
+        <GtmNoscript />
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }

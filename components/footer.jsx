@@ -1,4 +1,7 @@
+'use client';
+
 import { LinkedinIcon } from './icons';
+import { openCookieSettings } from './cookie-consent';
 
 export default function Footer() {
   return (
@@ -38,7 +41,18 @@ export default function Footer() {
         </div>
         <div className="footer-bot">
           <span>© 2026 Olai Business Consulting AB · olaibusiness.se</span>
-          <span>Designed in Sundsvall · Engineered everywhere</span>
+          <span>
+            <a href="/privacy">Privacy Policy</a>
+            {' · '}
+            <button
+              type="button"
+              className="cc-settings-link"
+              onClick={openCookieSettings}
+            >
+              Cookie settings
+            </button>
+            {' · Designed in Sundsvall · Engineered everywhere'}
+          </span>
         </div>
       </div>
     </footer>
