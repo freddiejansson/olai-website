@@ -1,5 +1,7 @@
 import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import CookieConsent from '@/components/cookie-consent';
+import ConsentMode, { GtmNoscript } from '@/components/consent-mode';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -52,7 +54,14 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
-      <body>{children}</body>
+      <head>
+        <ConsentMode />
+      </head>
+      <body>
+        <GtmNoscript />
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }
